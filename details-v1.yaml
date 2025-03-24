@@ -44,8 +44,8 @@ spec:
           limits:
             memory: 768Mi
           requests:
-            cpu: 1500m
-            memory: 768Mi
+            cpu: 1000m
+            memory: 800Mi
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File
       dnsPolicy: ClusterFirst
