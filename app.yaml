@@ -1,0 +1,349 @@
+templateVersion: 2.0
+
+meta:
+  org: "rng"
+  pod: "loyalty"
+  name: "shaktimaan"
+  tier: 1
+  version: "1.0"
+  multiArch: true
+  qualityGateName: "swiggy"
+  frameworks:
+    - name: "jdk"
+      version: "1.8.0"
+      vendor: "corretto"
+envVar:
+  config:
+    ref: "conf/"
+    sidecars:
+      - name: "shaktimaanratelimitersidecar"
+        ref: "sidecar-conf/rate-limiter/"
+  secret:
+    - KAFKA_TXN_PRIMARY_API_KEY
+    - KAFKA_TXN_PRIMARY_API_SECRET
+    - USER_SERVICE_BASIC_AUTH
+sos:
+  type: "domain"
+  name: "membership"
+infra:
+  compute:
+    type: "Container"
+    cpu: 8
+    memory: "12Gi"
+    appPort: 8080
+    appProtocol: "http"
+    healthCheck: true
+    healthProtocol: "http"
+    healthURL: "/health-check"
+    healthPort: 8080
+    metricURL: "/metrics"
+    networkProxySideCar: false
+    metricPort: 8080
+    startupTime: "150s"
+    gracePeriod: "150s"
+    requestTimeout: "2s"
+    alias: "shaktimaan.swiggy.prod"
+    logging:
+      backend: "sumologic" # shuttle will add logs in logman
+    scaling:
+      min: 4
+      max: 450
+      metric:
+        type: "cpu_2m"
+        target: 25
+      timeBased:
+        - schedule: "30 19 19 12 *" # upscale event schedule for testing
+          replicas: 120 #scale up the min replicas
+        - schedule: "30 20 19 12 *" # downscale event schedule post testing
+          replicas: 4 #scale down the min replicas
+        - schedule: "30 22 28 12 *" # upscale event schedule to handle NYE outburst from 29th Dec 4am
+          replicas: 180 #scale up the min replicas
+        - schedule: "30 22 1 1 *" # downscale event schedule post NYE from 2nd Jan 4am
+          replicas: 4 #scale down the min replicas
+        - schedule: "30 22 23 12 *" # upscale event schedule to handle christmas eve outburst from 24th Dec 4am
+          replicas: 180
+        - schedule: "30 22 25 12 *" # downscale event schedule post christmas eve from 26th Dec 4am
+          replicas: 4
+
+    sidecars:
+      - name: "shaktimaanratelimitersidecar"
+        image: "157529275398.dkr.ecr.ap-southeast-1.amazonaws.com/cicd/clm/rng-rate-limiter:1.0.00-748"
+        port: 8091
+        appPort: 8091
+        appProtocol: "grpc"
+        cpu: 0.2
+        memory: "200Mi"
+        healthURL: "/health-check"
+        healthProtocol: "http"
+        healthPort: 8081
+        healthCheck: true
+        metricURL: "/metrics"
+        metricPort: 8081
+
+  storage:
+    - type: "mysql"
+      name: "shaktimaandb"
+      params:
+        database: "super"
+        version: "8.0"
+        schema: "mysql_dump/shuttle_cd/"
+        data: "mysql_dump/dml/"
+        grant: "SELECT,INSERT,UPDATE,DELETE"
+        disk: "150Gi"
+        cpu: 4
+        memory: "16Gi"
+        rps: 1000  #iops set as 1000
+        wps: 1000
+        slaves:
+          - name: "shaktimaandbslave01"
+            disk: "300Gi"
+            cpu: 2
+            memory: "8Gi"
+            rps: 1000 #iops set as -
+    - type: "ref"
+      name: "subbenefitsvgattr"
+      params:
+        serviceName: "super-stream-attribute"
+        org: "rng"
+        pod: "loyalty"
+        storageType: "dynamodb"
+        storageName: "subbenefitsvgattr"
+    - type: "dynamodb"
+      name: "savingsdedup"
+      params:
+        tableName: "transaction_savings_dedup"
+        partitionKey: "order_dedup_key"
+        partitionKeyType: "string"
+        sortKey: "transaction_time"
+        sortKeyType: "number"
+        rcu: 70
+        wcu: 40
+        rcuScaling:
+          min: 70
+          max: 100
+          target: 70
+        wcuScaling:
+          min: 40
+          max: 350
+          target: 70
+    - type: "dynamodb"
+      name: "benefitoverride"
+      params:
+        tableName: "benefit_override"
+        partitionKey: "benefit_id"
+        partitionKeyType: "number"
+        sortKey: "sk"
+        sortKeyType: "string"
+        rcu: 50
+        wcu: 20
+        rcuScaling:
+          min: 50
+          max: 200
+          target: 70
+        wcuScaling:
+          min: 20
+          max: 50
+          target: 70
+    - type: "ref"
+      name: "potentialsavings"
+      params:
+        serviceName: "membership-server"
+        org: "rng"
+        pod: "loyalty"
+        storageType: "dynamodb"
+        storageName: "potentialsavings"
+    - type: "redis"
+      name: "shaktimaanecredis"
+      params:
+        memory: "50Gi"
+        throughput: "50000ops"
+        cluster: true
+        shards: 4
+        replicas: 1
+        provider: "elasticache"
+    - type: "dynamodb"
+      name: "lifetimesavings"
+      params:
+        tableName: "lifetime_savings"
+        partitionKey: "user_id"
+        partitionKeyType: "number"
+        rcu: 300
+        wcu: 460 # to be reduced once one-time backfill is done
+        rcuScaling:
+          min: 100
+          max: 13600
+          target: 70
+        wcuScaling:
+          min: 100
+          max: 13950
+          target: 70
+    - type: "s3"
+      name: "shaktimaans3"
+      params:
+        bucketName: "loyalty-file-upload" # Should be according to (?=^.{3,63}$)(?!xn--)([a-z0-9](?:[a-z0-9-]*)[a-z0-9])$
+        lifecycleRules:
+          - id: loyalty-lifecycle
+            expirationInDays: 2930 # 8 years
+            status: Enabled
+        objectLock: false # Possible value true/false
+        ownershipRules:
+          - objectOwnership: BucketOwnerEnforced
+
+    - type: "sqs"
+      name: "membershipsqs"
+      params:
+        name: "membership-user-incentive-mapping-queue"
+        type: "standard"
+        deduplication: false
+        dlq: "membership-user-incentive-mapping-dlq"
+        maxReceiveCount: 5
+        maxMessageSizeInBytes: 262144
+        messageRetentionPeriodInSeconds: 172800
+        receiveMessageWaitTimeSeconds: 10
+        encryption: disabled
+        visibilityTimeout: 600
+        dlqParamOverrides:
+          deduplication: "false"
+          maxMessageSizeInBytes: 262144
+          messageRetentionPeriodInSeconds: 172800
+          receiveMessageWaitTimeSeconds: 10
+          encryption: disabled
+          visibilityTimeout: "600"
+    - type: "sns-subscription"
+      name: "makercheckermembershipsub"
+      params:
+        topicName: "makercheckerupdates"
+        isFifoTopic: false
+        messageRetentionPeriod: 172800
+        filterPolicy: '{"use_case_name":["PLAN-USER-MAPPING"]}'
+        protocol: "sqs"
+        endpointName: "membership-user-incentive-mapping-queue"
+    - type: "ref"
+      name: "finmcs3ref"
+      params:
+        serviceName: "finance-maker-checker-service"
+        org: "ats"
+        pod: "finance"
+        storageType: "S3"
+        storageName: "finmcpayload"
+    - type: "ref"
+      name: "membershipdaxref"
+      params:
+        serviceName: "membership-server"
+        storageType: "dax"
+        storageName: "membershipdaxr5"
+
+pipeline:
+  stages:
+    - name: "test"
+      env: "ci"
+      actions:
+        - type: "test"
+          name: "unit"
+          params:
+            command: "./gradlew clean test"
+
+        - type: "codeCoverage"
+          name: "unit"
+          params:
+            exclusions: ""
+            inclusions: ""
+            coverageExclusions: "**/controller/**,**/model/**,**/constants/**,**/config/**,**/client/**,**/entity/**,**/AbstractGuavaCounterService.java,**/OrderDeliveredServiceImpl.java,**/OrderRedisServiceImpl.java,**/ClusterCacheConfig.java,**/ClmClient.java,**/JmxCollector.java, **/AllPlanDetailsServiceV3.java,**/external/**,**/tooling/**,**/CustomException.java,**/TemplateModelHelper.java,**/AuthorizationInterceptor.java,**/AuthorizationService.java,**/CollectionCacheChangesSubscriber.java,**/S3Configuration.java,**/UserSubscriptionHelper.java,**/UpdateActiveSubscriptionBenefitService.java,**/BenefitAddService.java,**/AddBenefitHelper.java,**/SubscriptionBenefitOfferMappingDBService.java,**/SubscriptionOfferDBService.java,**/SubscriptionBenefitOfferMappingConverter.java"
+            testExclusions: ""
+            testInclusions: ""
+            cpdExclusions: ""
+            coverageReportPaths: "build/reports/jacoco/jacoco.xml"
+
+        - type: "test"
+          name: "functional"
+          params:
+            command: "sh service_tests.sh"
+
+        - type: "codeCoverage"
+          name: "functional"
+          params:
+            exclusions: ""
+            inclusions: ""
+            coverageExclusions: "**/controller/**,**/model/**,**/constants/**,**/config/**,**/client/**,**/entity/**,**/AllPlanDetailsServiceV3.java,**/external/**,**/tooling/**,**/CustomException.java,**/TemplateModelHelper.java,**/AuthorizationInterceptor.java,**/AuthorizationService.java,**/CollectionCacheChangesSubscriber.java,**/S3Configuration.java,**/UpdateActiveSubscriptionBenefitService.java,**/BenefitAddService.java,**/AddBenefitHelper.java,**/SubscriptionBenefitOfferMappingDBService.java,**/SubscriptionOfferDBService.java,**/SubscriptionBenefitOfferMappingConverter.java"
+            testExclusions: ""
+            testInclusions: ""
+            cpdExclusions: ""
+            customArgs: "-Dsonar.coverage.jacoco.xmlReportPaths=./src/tmp/jacocoFunctionalTestReport"
+
+        - type: "build"
+          name: "Build"
+          params:
+            command: "./gradlew build -x test"
+            uploadPackage:
+              - pkg: "docker"
+                clusterName: "shaktimaan"
+                file: "Dockerfile"
+    - name: "d1-integration"
+      env: "d1"
+      actions:
+        - type: "deploy"
+          name: "deploy"
+          params:
+            strategy: "rolling"
+    - name: "sf-integration"
+      env: "sf"
+      actions:
+        - type: "deploy"
+          name: "deploy"
+          params:
+            strategy: "rolling"
+    - name: "u4-integration"
+      env: "u4"
+      actions:
+        - type: "deploy"
+          name: "deploy"
+          params:
+            strategy: "rolling"
+    - name: "stg-integration"
+      env: "staging"
+      actions:
+        - type: "deploy"
+          name: "deploy"
+          params:
+            strategy: "rolling"
+    - name: "preprod-integration"
+      env: "preprod"
+      actions:
+        - type: "deploy"
+          name: "deploy"
+          params:
+            strategy: "rolling"
+    - name: "production"
+      env: "production"
+      actions:
+        - type: "deploy"
+          name: "deploy"
+          params:
+            strategy: "canary"
+            canaryStages:
+              - share: 0
+                approver: "dev"
+              - share: 5
+                approver: "dev"
+              - share: 20
+                approver: "dev"
+              - share: 50
+                approver: "dev"
+ciSetup:
+  baseContainer:
+    name: "ubuntu-dind"
+    resources:
+      cpu: "6" # max is 6
+      memory: "16Gi"
+
+monitoring:
+  # dashboard link: https://eagleeye.swiggyops.de/d/rZWbP0sVz/shaktimaan-service?orgId=1
+  # Indicates the error rate of shaktimaan's API as percentage
+  - alert:
+    promql: sum by (api_identifier) (rate(total_api_failures_count_total{service="$service"}[5m])) * 100 / (sum by (api_identifier) (rate(total_api_failures_count_total{service="$service"}[5m])) + sum by (api_identifier) (rate(total_api_success_count_total{service="$service"}[5m])))
+  # Indicates the membership creation rate by channel
+  - alert:
+    promql: sum by (channel) (rate(api_success_count_total{api_identifier="SUBS_CREATE", service="$service"}[1m])*60)
+  # Indicates the membership creation rate at business line level
+  - alert:
+    promql: sum by (business_line) (rate(api_success_count_total{api_identifier="SUBS_CREATE", service="$service"}[15m])*60)
