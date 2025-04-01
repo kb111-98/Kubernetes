@@ -29,7 +29,7 @@ infra:
   compute:
     type: "Container"
     cpu: 8
-    memory: "12Gi"
+    memory: "154Mi"
     appPort: 8080
     appProtocol: "http"
     healthCheck: true
