@@ -28,8 +28,8 @@ sos:
 infra:
   compute:
     type: "Container"
-    cpu: 8
-    memory: "12Gi"
+    cpu: 500m
+    memory: "154Mi"
     appPort: 8080
     appProtocol: "http"
     healthCheck: true
@@ -248,7 +248,8 @@ pipeline:
           params:
             exclusions: ""
             inclusions: ""
-            coverageExclusions: "**/controller/**,**/model/**,**/constants/**,**/config/**,**/client/**,**/entity/**,**/AbstractGuavaCounterService.java,**/OrderDeliveredServiceImpl.java,**/OrderRedisServiceImpl.java,**/ClusterCacheConfig.java,**/ClmClient.java,**/JmxCollector.java, **/AllPlanDetailsServiceV3.java,**/external/**,**/tooling/**,**/CustomException.java,**/TemplateModelHelper.java,**/AuthorizationInterceptor.java,**/AuthorizationService.java,**/CollectionCacheChangesSubscriber.java,**/S3Configuration.java,**/UserSubscriptionHelper.java,**/UpdateActiveSubscriptionBenefitService.java,**/BenefitAddService.java,**/AddBenefitHelper.java,**/SubscriptionBenefitOfferMappingDBService.java,**/SubscriptionOfferDBService.java,**/SubscriptionBenefitOfferMappingConverter.java"
+            coverageExclusions: "**/controller/**,**/model/**,**/constants/**,**/config/**,**/client/**,**/entity/**,**/AbstractGuavaCounterService.java,**/OrderDeliveredServiceImpl.java,**/OrderRedisServiceImpl.java,**/ClusterCacheConfig.java,**/ClmClient.java,**/JmxCollector.java,
+              **/AllPlanDetailsServiceV3.java,**/external/**,**/tooling/**,**/CustomException.java,**/TemplateModelHelper.java,**/AuthorizationInterceptor.java,**/AuthorizationService.java,**/CollectionCacheChangesSubscriber.java,**/S3Configuration.java,**/UserSubscriptionHelper.java,**/UpdateActiveSubscriptionBenefitService.java,**/BenefitAddService.java,**/AddBenefitHelper.java,**/SubscriptionBenefitOfferMappingDBService.java,**/SubscriptionOfferDBService.java,**/SubscriptionBenefitOfferMappingConverter.java"
             testExclusions: ""
             testInclusions: ""
             cpdExclusions: ""
@@ -340,10 +341,14 @@ monitoring:
   # dashboard link: https://eagleeye.swiggyops.de/d/rZWbP0sVz/shaktimaan-service?orgId=1
   # Indicates the error rate of shaktimaan's API as percentage
   - alert:
-    promql: sum by (api_identifier) (rate(total_api_failures_count_total{service="$service"}[5m])) * 100 / (sum by (api_identifier) (rate(total_api_failures_count_total{service="$service"}[5m])) + sum by (api_identifier) (rate(total_api_success_count_total{service="$service"}[5m])))
+    promql: sum by (api_identifier) (rate(total_api_failures_count_total{service="$service"}[5m]))
+      * 100 / (sum by (api_identifier) (rate(total_api_failures_count_total{service="$service"}[5m]))
+      + sum by (api_identifier) (rate(total_api_success_count_total{service="$service"}[5m])))
   # Indicates the membership creation rate by channel
   - alert:
-    promql: sum by (channel) (rate(api_success_count_total{api_identifier="SUBS_CREATE", service="$service"}[1m])*60)
+    promql: sum by (channel) (rate(api_success_count_total{api_identifier="SUBS_CREATE",
+      service="$service"}[1m])*60)
   # Indicates the membership creation rate at business line level
   - alert:
-    promql: sum by (business_line) (rate(api_success_count_total{api_identifier="SUBS_CREATE", service="$service"}[15m])*60)
+    promql: sum by (business_line) (rate(api_success_count_total{api_identifier="SUBS_CREATE",
+      service="$service"}[15m])*60)
