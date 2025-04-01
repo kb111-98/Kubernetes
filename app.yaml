@@ -28,8 +28,8 @@ sos:
 infra:
   compute:
     type: "Container"
-    cpu: 8
-    memory: "12Gi"
+    cpu: 500m
+    memory: "154Mi"
     appPort: 8080
     appProtocol: "http"
     healthCheck: true
@@ -71,8 +71,8 @@ infra:
         port: 8091
         appPort: 8091
         appProtocol: "grpc"
-        cpu: 0.2
-        memory: "200Mi"
+        cpu: 500m
+        memory: "154Mi"
         healthURL: "/health-check"
         healthProtocol: "http"
         healthPort: 8081
@@ -90,15 +90,15 @@ infra:
         data: "mysql_dump/dml/"
         grant: "SELECT,INSERT,UPDATE,DELETE"
         disk: "150Gi"
-        cpu: 4
-        memory: "16Gi"
+        cpu: 500m
+        memory: "154Mi"
         rps: 1000  #iops set as 1000
         wps: 1000
         slaves:
           - name: "shaktimaandbslave01"
             disk: "300Gi"
-            cpu: 2
-            memory: "8Gi"
+            cpu: 500m
+            memory: "154Mi"
             rps: 1000 #iops set as -
     - type: "ref"
       name: "subbenefitsvgattr"
@@ -155,7 +155,7 @@ infra:
     - type: "redis"
       name: "shaktimaanecredis"
       params:
-        memory: "50Gi"
+        memory: "154Mi"
         throughput: "50000ops"
         cluster: true
         shards: 4
