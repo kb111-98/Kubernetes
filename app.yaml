@@ -28,8 +28,8 @@ sos:
 infra:
   compute:
     type: "Container"
-    cpu: 8
-    memory: "12Gi"
+    cpu: 500m
+    memory: "154Mi"
     appPort: 8080
     appProtocol: "http"
     healthCheck: true
@@ -71,8 +71,8 @@ infra:
         port: 8091
         appPort: 8091
         appProtocol: "grpc"
-        cpu: 0.2
-        memory: "200Mi"
+        cpu: 500m
+        memory: "154Mi"
         healthURL: "/health-check"
         healthProtocol: "http"
         healthPort: 8081
