@@ -28,7 +28,7 @@ sos:
 infra:
   compute:
     type: "Container"
-    cpu: 8
+    cpu: 500m
     memory: "12Gi"
     appPort: 8080
     appProtocol: "http"
