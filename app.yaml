@@ -28,7 +28,7 @@ sos:
 infra:
   compute:
     type: "Container"
-    cpu: 8
+    cpu: 500m
     memory: "12Gi"
     appPort: 8080
     appProtocol: "http"
@@ -50,7 +50,7 @@ infra:
       max: 450
       metric:
         type: "cpu_2m"
-        target: 25
+        target: 70
       timeBased:
         - schedule: "30 19 19 12 *" # upscale event schedule for testing
           replicas: 120 #scale up the min replicas
