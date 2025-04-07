@@ -64,56 +64,32 @@ GITHUB_TOKEN         # GitHub token for PR automation
 
 ## Prometheus Queries
 
-The following Prometheus queries are used to collect metrics:
-
 ### CPU Usage Metrics
 ```
-# Base CPU query - 1-minute rate of CPU usage
 rate(container_cpu_usage_seconds_total{namespace="<namespace>",pod=~"<deployment-name>-.*",container="<container-name>"}[1m])
-
-# Minimum CPU usage over lookback period
 min_over_time(rate(container_cpu_usage_seconds_total{namespace="<namespace>",pod=~"<deployment-name>-.*",container="<container-name>"}[1m])[<lookback-period>:])
-
-# Average CPU usage over lookback period
 avg_over_time(rate(container_cpu_usage_seconds_total{namespace="<namespace>",pod=~"<deployment-name>-.*",container="<container-name>"}[1m])[<lookback-period>:])
-
-# Maximum CPU usage over lookback period
 max_over_time(rate(container_cpu_usage_seconds_total{namespace="<namespace>",pod=~"<deployment-name>-.*",container="<container-name>"}[1m])[<lookback-period>:])
 ```
 
 ### Memory Usage Metrics
 ```
-# Base memory query - current memory usage
 container_memory_working_set_bytes{namespace="<namespace>",pod=~"<deployment-name>-.*",container="<container-name>"}
-
-# Minimum memory usage over lookback period
 min_over_time(container_memory_working_set_bytes{namespace="<namespace>",pod=~"<deployment-name>-.*",container="<container-name>"}[<lookback-period>:])
-
-# Average memory usage over lookback period
 avg_over_time(container_memory_working_set_bytes{namespace="<namespace>",pod=~"<deployment-name>-.*",container="<container-name>"}[<lookback-period>:])
-
-# Maximum memory usage over lookback period
 max_over_time(container_memory_working_set_bytes{namespace="<namespace>",pod=~"<deployment-name>-.*",container="<container-name>"}[<lookback-period>:])
 ```
 
 ### OOM (Out-of-Memory) Detection
 ```
-# Check if container was terminated due to OOM
 kube_pod_container_status_last_terminated_reason{reason="OOMKilled", namespace="<namespace>", pod=~"<deployment-name>-.*"}
-
-# Count of container restarts
 kube_pod_container_status_restarts_total{container="<container-name>", namespace="<namespace>", pod=~"<deployment-name>-.*"}
 ```
 
 ### Replica Information
 ```
-# Maximum replicas over time
 max_over_time(kube_deployment_status_replicas{namespace="<namespace>", deployment="<deployment-name>"}[<lookback-period>:])
-
-# Minimum replicas over time
 min_over_time(kube_deployment_status_replicas{namespace="<namespace>", deployment="<deployment-name>"}[<lookback-period>:])
-
-# Desired replicas
 kube_deployment_spec_replicas{namespace="<namespace>", deployment="<deployment-name>"}
 ```
 
@@ -144,3 +120,4 @@ Run with Docker:
 ```
 docker run -p 8000:8000 --env-file .env resource-optimizer-backend
 ```
+
