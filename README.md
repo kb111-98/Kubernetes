@@ -69,47 +69,58 @@ GITHUB_TOKEN         # Personal access token for creating PRs
 ### 🧠 CPU Usage Metrics
 ```promql
 # 1-min CPU usage rate
-rate(container_cpu_usage_seconds_total{namespace="<namespace>", pod=~"<deployment>-.*", container="<container>"}[1m])
+rate(container_cpu_usage_seconds_total{namespace="<namespace>", pod=~"<deployment-name>-.*", container="<container-name>"}[1m])
+
 
 # Minimum usage during lookback
-min_over_time(rate(...)[<lookback-period>:])
+min_over_time(rate(container_cpu_usage_seconds_total{namespace="<namespace>", pod=~"<deployment-name>-.*", container="<container-name>"}[1m])[<lookback-period>:])
 
 # Average usage
-avg_over_time(rate(...)[<lookback-period>:])
+avg_over_time(rate(container_cpu_usage_seconds_total{namespace="<namespace>", pod=~"<deployment-name>-.*", container="<container-name>"}[1m])[<lookback-period>:])
 
 # Peak usage
-max_over_time(rate(...)[<lookback-period>:])
+max_over_time(rate(container_cpu_usage_seconds_total{namespace="<namespace>", pod=~"<deployment-name>-.*", container="<container-name>"}[1m])[<lookback-period>:])
 ```
 These help estimate how much CPU the container actually uses vs. what’s requested.
 
 ### 💾 Memory Usage Metrics
 ```promql
-# Current memory consumption
-container_memory_working_set_bytes{namespace="<namespace>", pod=~"<deployment>-.*", container="<container>"}
+# current working set memory (non-cache memory)
+container_memory_working_set_bytes{namespace="<namespace>", pod=~"<deployment-name>-.*", container="<container-name>"}
 
-# Historical minimum/avg/max
-min_over_time(...), avg_over_time(...), max_over_time(...)
+# Minimum memory usage over the lookback period
+min_over_time(container_memory_working_set_bytes{namespace="<namespace>", pod=~"<deployment-name>-.*", container="<container-name>"}[<lookback-period>:])
+
+# Average memory usage over the lookback period
+avg_over_time(container_memory_working_set_bytes{namespace="<namespace>", pod=~"<deployment-name>-.*", container="<container-name>"}[<lookback-period>:])
+
+# Maximum memory usage over the lookback period
+max_over_time(container_memory_working_set_bytes{namespace="<namespace>", pod=~"<deployment-name>-.*", container="<container-name>"}[<lookback-period>:])
+ 
 ```
 Shows trends in memory usage to prevent OOMs.
 
 ### 🔥 OOMKill & Restarts
 ```promql
 # Containers killed due to memory
-kube_pod_container_status_last_terminated_reason{reason="OOMKilled", ...}
+kube_pod_container_status_last_terminated_reason{reason="OOMKilled", namespace="<namespace>", pod=~"<deployment-name>-.*"}
+
 
 # Container restart count
-kube_pod_container_status_restarts_total{container="<container>", ...}
+kube_pod_container_status_restarts_total{container="<container-name>", namespace="<namespace>", pod=~"<deployment-name>-.*"}
 ```
 Useful for identifying unstable containers.
 
 ### 📊 Replica Info (HPA Insight)
 ```promql
-# Historical replica scaling
-max_over_time(kube_deployment_status_replicas{...}[<lookback-period>:])
-min_over_time(kube_deployment_status_replicas{...}[<lookback-period>:])
+# Maximum replicas observed over time
+max_over_time(kube_deployment_status_replicas{namespace="<namespace>", deployment="<deployment-name>"}[<lookback-period>:])
 
-# Current replica spec
-kube_deployment_spec_replicas{...}
+# Minimum replicas observed over time
+min_over_time(kube_deployment_status_replicas{namespace="<namespace>", deployment="<deployment-name>"}[<lookback-period>:])
+
+# Desired replica count
+kube_deployment_spec_replicas{namespace="<namespace>", deployment="<deployment-name>"}
 ```
 Helps correlate resource usage with autoscaling.
 
@@ -145,4 +156,8 @@ docker build -t resource-optimizer-backend .
 ```bash
 docker run -p 8000:8000 --env-file .env resource-optimizer-backend
 ```
+
+## 📄 License
+
+MIT License
 
